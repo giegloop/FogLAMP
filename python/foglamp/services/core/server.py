@@ -47,7 +47,6 @@ from foglamp.services.core.asset_tracker.asset_tracker import AssetTracker
 from foglamp.services.core.api import asset_tracker as asset_tracker_api
 from foglamp.common.web.ssl_wrapper import SSLVerifier
 
-
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -61,7 +60,7 @@ _FOGLAMP_ROOT = os.getenv("FOGLAMP_ROOT", default='/usr/local/foglamp')
 _SCRIPTS_DIR = os.path.expanduser(_FOGLAMP_ROOT + '/scripts')
 
 # PID dir and filename
-_FOGLAMP_PID_DIR= "/var/run"
+_FOGLAMP_PID_DIR = "/var/run"
 _FOGLAMP_PID_FILE = "foglamp.core.pid"
 
 
@@ -322,7 +321,8 @@ class Server:
             config = cls._REST_API_DEFAULT_CONFIG
             category = 'rest_api'
 
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True, display_name="Admin API")
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Admin and User REST API', True,
+                                                             display_name="Admin API")
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -374,7 +374,8 @@ class Server:
 
             if cls._configuration_manager is None:
                 _logger.error("No configuration manager available")
-            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True, display_name='FogLAMP Service')
+            await cls._configuration_manager.create_category(category, config, 'FogLAMP Service', True,
+                                                             display_name='FogLAMP Service')
             config = await cls._configuration_manager.get_category_all_items(category)
 
             try:
@@ -468,12 +469,15 @@ class Server:
                 found_services = ServiceRegistry.get(name="FogLAMP Storage")
                 storage_service = found_services[0]
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
-            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
+                    Exception) as ex:
                 await asyncio.sleep(5)
         while cls._readings_client_async is None:
             try:
-                cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
-            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port,
+                                                                        svc=storage_service)
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
+                    Exception) as ex:
                 await asyncio.sleep(5)
 
     @classmethod
@@ -500,7 +504,7 @@ class Server:
     def _pidfile_exists(cls):
         """ Check whether the PID file exists """
         try:
-            fh = open(cls._pidfile,'r')
+            fh = open(cls._pidfile, 'r')
             fh.close()
             return True
         except (FileNotFoundError, IOError, TypeError):
@@ -549,12 +553,12 @@ class Server:
                 raise
 
             # Build the JSON object to write into PID file
-            info_data = {'processID' : pid,\
-                         'adminAPI' : {\
-                             "protocol": "HTTP" if cls.is_rest_server_http_enabled else "HTTPS",\
-                             "addresses": [api_address],\
-                             "port": api_port }\
-                        }
+            info_data = {'processID': pid, \
+                         'adminAPI': { \
+                             "protocol": "HTTP" if cls.is_rest_server_http_enabled else "HTTPS", \
+                             "addresses": [api_address], \
+                             "port": api_port} \
+                         }
 
             # Write data into PID file
             fh.write(json.dumps(info_data))
@@ -596,7 +600,7 @@ class Server:
             # Reset identified rows of the streams table
             if len(streams_id) >= 0:
                 for _stream_id in streams_id:
-                    payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()')\
+                    payload = payload_builder.PayloadBuilder().SET(last_object=0, ts='now()') \
                         .WHERE(['id', '=', _stream_id]).payload()
                     loop.run_until_complete(cls._storage_client_async.update_tbl("streams", payload))
 
@@ -719,23 +723,26 @@ class Server:
             # to allow other microservices to find FogLAMP
             loop.run_until_complete(cls.service_config())
             _logger.info('Announce management API service')
-            cls.management_announcer = ServiceAnnouncer('core.{}'.format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
-                                                        ['The FogLAMP Core REST API'])
+            cls.management_announcer = ServiceAnnouncer("core-{}".format(cls._service_name), cls._MANAGEMENT_SERVICE,
+                                                        cls.core_management_port,
+                                                        'The FogLAMP Core REST API')
 
-            cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host, cls.rest_server_port, ssl_ctx=ssl_ctx)
+            cls.service_server, cls.service_server_handler = cls._start_app(loop, cls.service_app, host,
+                                                                            cls.rest_server_port, ssl_ctx=ssl_ctx)
             address, service_server_port = cls.service_server.sockets[0].getsockname()
 
             # Write PID file with REST API details
             cls._write_pid(address, service_server_port)
 
-            _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
+            _logger.info('REST API Server started on %s://%s:%s',
+                         'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
             # All services are up so now we can advertise the Admin and User REST API's
             cls.admin_announcer = ServiceAnnouncer(cls._service_name, cls._ADMIN_API_SERVICE, service_server_port,
-                                                   [cls._service_description])
+                                                   cls._service_description)
             cls.user_announcer = ServiceAnnouncer(cls._service_name, cls._USER_API_SERVICE, service_server_port,
-                                                  [cls._service_description])
+                                                  cls._service_description)
             # register core
             # a service with 2 web server instance,
             # registering now only when service_port is ready to listen the request
@@ -769,7 +776,7 @@ class Server:
     @classmethod
     def _register_core(cls, host, mgt_port, service_port):
         core_service_id = ServiceRegistry.register(name="FogLAMP Core", s_type="Core", address=host,
-                                                     port=service_port, management_port=mgt_port)
+                                                   port=service_port, management_port=mgt_port)
 
         return core_service_id
 
@@ -928,7 +935,8 @@ class Server:
                     for fs in services_to_stop:
                         pids = get_process_id(fs._name)
                         for pid in pids:
-                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name, fs._status)
+                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name,
+                                          fs._status)
                             os.kill(pid, signal.SIGKILL)
                             _logger.info("KILLED Microservice:%s...", fs._name)
                     return
@@ -990,11 +998,12 @@ class Server:
 
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
-                                                                   service_port, service_management_port, service_protocol)
+                                                                 service_port, service_management_port,
+                                                                 service_protocol)
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
-                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                        await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
@@ -1070,8 +1079,8 @@ class Server:
                 services_list = ServiceRegistry.get(s_type=service_type)
             else:
                 services_list = ServiceRegistry.filter_by_name_and_type(
-                        name=service_name, s_type=service_type
-                    )
+                    name=service_name, s_type=service_type
+                )
         except service_registry_exceptions.DoesNotExist as ex:
             if not service_name and not service_type:
                 msg = 'No service found'
@@ -1133,7 +1142,7 @@ class Server:
             await asyncio.sleep(2.0, loop=loop)
             _logger.info("Stopping the FogLAMP Core event loop. Good Bye!")
             loop.stop()
-            
+
             if 'safe-mode' in sys.argv:
                 sys.argv.remove('safe-mode')
                 sys.argv.append('')
@@ -1169,10 +1178,14 @@ class Server:
             try:
                 registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
             except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
-                raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+                raise web.HTTPBadRequest(
+                    reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(
+                        microservice_uuid, category_name))
 
             if not registered_interest_id:
-                raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+                raise web.HTTPBadRequest(
+                    reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(
+                        microservice_uuid, category_name))
 
             _response = {
                 'id': registered_interest_id,
@@ -1203,7 +1216,8 @@ class Server:
             try:
                 cls._interest_registry.get(registration_id=interest_registration_id)
             except interest_registry_exceptions.DoesNotExist:
-                raise ValueError('InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
+                raise ValueError(
+                    'InterestRecord with registration_id {} does not exist'.format(interest_registration_id))
 
             cls._interest_registry.unregister(interest_registration_id)
 
@@ -1344,9 +1358,9 @@ class Server:
             raise ValueError('Data payload must be a dictionary')
 
         try:
-            code=data.get("source")
-            level=data.get("severity")
-            message=data.get("details")
+            code = data.get("source")
+            level = data.get("severity")
+            message = data.get("details")
 
             # Add audit entry code and message for the given level
             await getattr(cls._audit, str(level).lower())(code, message)
@@ -1358,8 +1372,8 @@ class Server:
             message = {'timestamp': str(timestamp),
                        'source': code,
                        'severity': level,
-                       'details': message 
-                      }
+                       'details': message
+                       }
 
         except (TypeError, StorageServerError) as ex:
             raise web.HTTPBadRequest(reason=str(ex))
